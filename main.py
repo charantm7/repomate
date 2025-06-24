@@ -1,38 +1,23 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
-from typing import Union
-from fastapi.templating import Jinja2Templates
+from enum import Enum
+
+from fastapi import FastAPI
+
+
+class ModelName(str, Enum):
+    alexnet = "alexnet"
+    resnet = "resnet"
+    lenet = "lenet"
+
 
 app = FastAPI()
-template = Jinja2Templates(directory='templates')
 
 
-class Item(BaseModel):
-    name:str
-    price:int
-    is_available: Union[bool, None] = None
+@app.get("/models/{name}")
+async def get_model(name: ModelName):
+    if name is ModelName.alexnet.value == 'alexnet':
+        return {"name": name, "message": "Deep Learning FTW!"}
 
-{
-    "name": "Foo",
-    "description": "An optional description",
-    "price": 45,
-    "tax": 3.5
-}
-
-@app.post('/items/')
-async def item(item:Item):
-    return item
-
-
-@app.get("/", response_class=HTMLResponse)
-def html_page(request: Request, name:str):
-
-    context = {
-        "request": request,
-        "name": name
-    }
-    return template.TemplateResponse("index.html",context)
-    
-    
-    
+    elif name is ModelName.lenet:
+        return {"name": name, "message": "LeCNN all the images"}
+    else:
+        return {"name": name, "message": "Have some residuals"}

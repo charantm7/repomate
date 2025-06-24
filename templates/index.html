@@ -1,40 +1,33 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
-    <style>
-        *{
-            margin: 0;
-            padding: 0;
-        }
-
-        body{
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        .container{
-            display: flex;
-            flex-direction: column;
-            padding:1rem;
-            
-        }
-    </style>
+    <title>Item Table</title>
 </head>
 <body>
-    <div class="container">
-        <div class="top">
-            Welcome to fastApi Course
-        </div>
+    <h1>Welcome, {{ name }}!</h1>
 
-        <div class="bot">
-            This is {{name}}!
-        </div>
-
-    </div>
+    <h2>Items Table</h2>
+    {% if items %}
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Available</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.price }}</td>
+                <td>{{ item.is_available }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No items added yet.</p>
+    {% endif %}
 </body>
 </html>
