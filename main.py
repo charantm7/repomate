@@ -1,7 +1,11 @@
 from enum import Enum
 from typing import Union
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel
+from git import Repo
+import os
 
 
 class ModelName(str, Enum):
@@ -18,6 +22,7 @@ class Student(BaseModel):
 
 
 app = FastAPI()
+template = Jinja2Templates(directory='templates')
 
 
 @app.get("/models/{name}")
@@ -52,3 +57,27 @@ async def create_student(item_id:int, student:Student, passed:Union[bool, None] 
 
 
     return result
+
+def clone_repo(git_url, directory):
+    Repo.clone_from(git_url, directory)
+
+@app.get("/", response_class=HTMLResponse)
+async def git(request:Request, git_url:str = "", directory:str = ""):
+    
+    if git_url and directory is not None:
+        try:
+            if not os.path.exists(directory):
+                clone_repo(git_url=git_url, directory=directory)
+                msg = f"Cloned {git_url} to {directory}"
+                RedirectResponse(url='/', status_code=302)
+
+            else:
+                msg = f"Directory {directory} already exists!"
+
+        except Exception as e:
+            msg = f"Error {e}"
+
+    else:
+        msg = ''
+    return template.TemplateResponse("index.html", {"request":request, "msg":msg, "git_url": git_url,
+        "directory": directory,}, )

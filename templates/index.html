@@ -2,32 +2,28 @@
 <html>
 <head>
     <title>Item Table</title>
+    <script>
+        function showcloning(){
+            const statusdiv = document.getElementById("status");
+            statusdiv.innerText= 'Cloning...';
+        }
+    </script>
 </head>
 <body>
-    <h1>Welcome, {{ name }}!</h1>
+    <form method="get" action="/" onsubmit="showcloning()">
+    <label for="git_url">GitHub clone URL</label>
+    <input type="url" name="git_url" id="git_url">
 
-    <h2>Items Table</h2>
-    {% if items %}
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Price</th>
-                <th>Available</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for item in items %}
-            <tr>
-                <td>{{ item.name }}</td>
-                <td>{{ item.price }}</td>
-                <td>{{ item.is_available }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p>No items added yet.</p>
-    {% endif %}
+    <label for="directory">Directory</label>
+    <input type="text" name="directory" id="directory">
+
+    <button type="submit">Clone the Repo</button>
+</form>
+<div id="status">
+{% if msg %}
+<p>{{msg}}</p>
+{% endif %}
+</div>
+
 </body>
 </html>
