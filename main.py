@@ -5,16 +5,19 @@ from langchain.text_splitter import CharacterTextSplitter
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from langchain_community.vectorstores import FAISS
 from sentence_transformers import SentenceTransformer, util
-from langchain.llms import openai
+from langchain_community.chat_models import  ChatOpenAI
 from langchain.memory import ConversationBufferMemory
-from langchain.chains import conversational_retrieval
+from langchain.chains import ConversationalRetrievalChain
+import os
 
 def get_pdf_text(pdf_docs):
     text = ""
     for pdf in pdf_docs:
         pdf_reader = PdfReader(pdf)
         for page in pdf_reader.pages:
-            text = page.extract_text()
+            page_text = page.extract_text()
+            if page_text:
+                text += page_text + "\n"
 
     return text
 
@@ -36,9 +39,10 @@ def get_vector_store(chunks):
 
 def get_conversation(vector_store):
 
-    llm = openai()
+    llm =  ChatOpenAI(model= "mistralai/mistral-small-3.2-24b-instruct:free",
+                      base_url="https://openrouter.ai/api/v1",api_key=os.getenv("OPENROUTER_API_KEY"))
     memory = ConversationBufferMemory(memory_key='chat_history', return_messages=True)
-    conversation = conversational_retrieval(
+    conversation = ConversationalRetrievalChain.from_llm(
         llm = llm,
         retriever = vector_store.as_retriever(),
         memory = memory 
@@ -113,6 +117,7 @@ css = """
         }
         .bot .bottom{
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: flex-end;
             /* padding: 1rem; */
@@ -152,7 +157,13 @@ bot_template = """
 
 def question_handle(question):
     response = st.session_state.conversation({'question':question})
-    st.write(response)
+    st.session_state.chat_history = response['chat_history']
+
+    for i, message in enumerate(st.session_state.chat_history):
+        if i%2 == 0:
+            st.markdown(user_templapalte.replace("{{question}}", message.content), unsafe_allow_html=True)
+        else:
+            st.markdown(bot_template.replace("{{response}}", message.content), unsafe_allow_html=True)
 
 
 def main():
@@ -166,12 +177,13 @@ def main():
     if question:
         question_handle(question)
 
-    
-    st.markdown(user_templapalte.replace("{{question}}", "Hi how are you bot i am charan?"), unsafe_allow_html=True)
-    st.markdown(bot_template.replace("{{response}}", "Hey i am good man, Lorem ipsum dolor sit amet consectetur adipisicing elit. Minus ipsum esse veniam nemo doloremque maiores deleniti?"), unsafe_allow_html=True)
 
     if "conversation" not in st.session_state:
         st.session_state.conversation = None
+
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = None
+
 
     with st.sidebar:
         st.subheader("My Docs")
@@ -181,7 +193,7 @@ def main():
 
                 # get the pdf text
                 raw_text = get_pdf_text(pdf_docs)
-                # st.write(raw_text)
+                
 
                 # get the chunk data
                 chunks = get_text_chunks(raw_text)
