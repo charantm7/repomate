@@ -146,7 +146,7 @@ bot_template = """
 <div class="bot">
     <div class="top">
         <img src="https://www.shutterstock.com/image-vector/chat-bot-icon-virtual-smart-600nw-2478937555.jpg" alt="">
-        <p>Bot</p>    
+        <p>Bots</p>    
     </div>
     <div class="bottom">
         <p>{{response}}</p>
