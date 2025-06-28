@@ -171,7 +171,7 @@ def main():
     st.set_page_config(page_title="Chat with the multiple PDFs", page_icon=":books:")
     st.markdown(css, unsafe_allow_html=True)
 
-    st.header("Chat with the multiple PDFs :books:")
+    st.header("Chat with the multiple PDF's :books:")
     question = st.text_input("Ask questions about pdf :")
 
     if question:
