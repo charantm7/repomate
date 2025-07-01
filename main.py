@@ -8,9 +8,14 @@ from sentence_transformers import SentenceTransformer, util
 from langchain_community.chat_models import  ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
-import os
+from langchain_community.document_loaders import DirectoryLoader
+from langchain_community.document_loaders.text import TextLoader
+from langchain_core.documents import Document
+import os, zipfile
+from io import BytesIO
+import chardet
 
-def get_pdf_text(pdf_docs):
+def get_raw_directory_text(pdf_docs):
     text = ""
     for pdf in pdf_docs:
         pdf_reader = PdfReader(pdf)
@@ -21,17 +26,24 @@ def get_pdf_text(pdf_docs):
 
     return text
 
-def get_text_chunks(raw_text):
+def get_text_chunks(documents):
+    all_content = []
     text_splitter = CharacterTextSplitter(
         separator="\n",
         chunk_size = 1000,
         chunk_overlap = 200,
         length_function=len
     )
-    chunk = text_splitter.split_text(raw_text)
-    return chunk
+    for doc in documents:
+        text = doc.page_content
+        if isinstance(text, list):
+            text = "\n".join(text)
+        chunk = text_splitter.split_text(text)
+        all_content.extend(chunk)
+    return all_content
 
 def get_vector_store(chunks):
+
     embeddings = HuggingFaceBgeEmbeddings(model_name="BAAI/bge-small-en-v1.5")
     
     vectorstore = FAISS.from_texts(texts=chunks, embedding=embeddings)
@@ -48,6 +60,15 @@ def get_conversation(vector_store):
         memory = memory 
     )
     return conversation
+
+def read_file_safely(file_path):
+    try:
+        with open(file_path, "rb") as f:
+            raw = f.read()
+            encoding = chardet.detect(raw)["encoding"]
+            return raw.decode(encoding or 'utf-8', errors='ignore')
+    except Exception as e:
+        return f"[Error reading {file_path}]: {str(e)}"
 
 css = """
 <style>
@@ -166,6 +187,8 @@ def question_handle(question):
             st.markdown(bot_template.replace("{{response}}", message.content), unsafe_allow_html=True)
 
 
+all_docs = []
+
 def main():
     load_dotenv()
     st.set_page_config(page_title="Chat with the multiple PDFs", page_icon=":books:")
@@ -187,21 +210,46 @@ def main():
 
     with st.sidebar:
         st.subheader("My Docs")
-        pdf_docs = st.file_uploader("Upload your PDF's here and click 'Process'", accept_multiple_files=True)
+        ziped_doc = st.file_uploader("Upload your Project ZIP file and click 'Process'", type="zip")
+
         if st.button("Process"):
             with st.spinner():
+                # set extraction path
+                if ziped_doc is not None:
+                    extract_path = "/home/charantm/Devkernal/repomate/extraction"
 
-                # get the pdf text
-                raw_text = get_pdf_text(pdf_docs)
-                
+                    # clear all last extraction
+                    if os.path.exists(extract_path):
+                        import shutil
+                        shutil.rmtree(extract_path)
 
-                # get the chunk data
-                chunks = get_text_chunks(raw_text)
-                # st.write(chunks)
+                    # extract all the files in zip
+                    with zipfile.ZipFile(ziped_doc, "r") as zip_re:
+                        zip_re.extractall(extract_path)
+                        st.success("File extraction successfull")
 
-                # store in a vector database
-                vector_store = get_vector_store(chunks)
-                st.session_state.conversation = get_conversation(vector_store)
+                        for root, dirs, files in os.walk(extract_path):
+                            for file in files:
+                                filepath = os.path.join(root, file)
+
+                                if not file.lower().endswith((".py", ".txt", ".md", ".json", ".html", ".css", ".scss" ".js", ".jsx",".xml", ".csv", ".yml", ".ini")):
+                                    continue
+
+                                # get the file text
+                                content = read_file_safely(filepath)
+                                all_docs.append(Document(page_content=content, metadata={'source':filepath}))
+
+
+
+                                # get the chunk data
+                                chunks = get_text_chunks(all_docs)
+                                st.success("Chunked the doc!")
+                                # st.write(chunks)
+
+                                # store in a vector database
+                                vector_store = get_vector_store(chunks)
+                                st.success("Ready for conversation")
+                                st.session_state.conversation = get_conversation(vector_store)
                 
 
 

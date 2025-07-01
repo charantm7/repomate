@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": " Gemini veritas AI",
+  "version": "1.0",
+  "description": "Summarize web pages using Google's Gemini API with dual authentication",
+  "permissions": ["activeTab", "scripting", "tabs", "storage", "identity", "windows"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_end"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["summary.html", "style.css", "images/veritas-logo.png"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "oauth2": {
+    "client_id": "775715532183-7d75s1ptdeqllv7iqi76f6m040sqsm1c.apps.googleusercontent.com",
+    "scopes": ["https://www.googleapis.com/auth/generative-language.retrieve"]
+  },
+  "key": "cnjjjldpnalbdoooelmjcoencomhoald"
+}
