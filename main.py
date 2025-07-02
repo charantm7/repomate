@@ -17,30 +17,25 @@ import chardet
 
 def get_raw_directory_text(pdf_docs):
     text = ""
-    for pdf in pdf_docs:
-        pdf_reader = PdfReader(pdf)
-        for page in pdf_reader.pages:
-            page_text = page.extract_text()
-            if page_text:
-                text += page_text + "\n"
+    pdf_reader = PdfReader(pdf_docs)
+    for page in pdf_reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text + "\n"
 
     return text
 
 def get_text_chunks(documents):
-    all_content = []
     text_splitter = CharacterTextSplitter(
         separator="\n",
         chunk_size = 1000,
         chunk_overlap = 200,
         length_function=len
     )
-    for doc in documents:
-        text = doc.page_content
-        if isinstance(text, list):
-            text = "\n".join(text)
-        chunk = text_splitter.split_text(text)
-        all_content.extend(chunk)
-    return all_content
+   
+    chunk = text_splitter.split_text(documents)
+
+    return chunk
 
 def get_vector_store(chunks):
 
@@ -69,6 +64,22 @@ def read_file_safely(file_path):
             return raw.decode(encoding or 'utf-8', errors='ignore')
     except Exception as e:
         return f"[Error reading {file_path}]: {str(e)}"
+
+def file_traversal(extract_path):
+    directory_docs = []
+    for root, dirs, files in os.walk(extract_path):
+        for file in files:
+            filepath = os.path.join(root, file)
+
+            if not file.lower().endswith((".py", ".txt", ".md", ".json", ".html", ".css", ".scss" ".js", ".jsx",".xml", ".csv", ".yml", ".ini")):
+                continue
+
+            # get the file text
+            content = read_file_safely(filepath)
+            directory_docs.append(Document(page_content=content, metadata={'source':filepath}))
+
+    return directory_docs
+
 
 css = """
 <style>
@@ -187,11 +198,9 @@ def question_handle(question):
             st.markdown(bot_template.replace("{{response}}", message.content), unsafe_allow_html=True)
 
 
-all_docs = []
-
 def main():
     load_dotenv()
-    st.set_page_config(page_title="Chat with the multiple PDFs", page_icon=":books:")
+    st.set_page_config(page_title="PDF Analyser", page_icon=":books:")
     st.markdown(css, unsafe_allow_html=True)
 
     st.header("Chat with the multiple PDF's :books:")
@@ -210,12 +219,14 @@ def main():
 
     with st.sidebar:
         st.subheader("My Docs")
-        ziped_doc = st.file_uploader("Upload your Project ZIP file and click 'Process'", type="zip")
+        pdf_ziped_doc = st.file_uploader("Upload your Project ZIP file and click 'Process'")
 
         if st.button("Process"):
             with st.spinner():
+
                 # set extraction path
-                if ziped_doc is not None:
+                if pdf_ziped_doc is not None and pdf_ziped_doc.type == 'application/zip':
+
                     extract_path = "/home/charantm/Devkernal/repomate/extraction"
 
                     # clear all last extraction
@@ -224,32 +235,24 @@ def main():
                         shutil.rmtree(extract_path)
 
                     # extract all the files in zip
-                    with zipfile.ZipFile(ziped_doc, "r") as zip_re:
+                    with zipfile.ZipFile(pdf_ziped_doc, "r") as zip_re:
                         zip_re.extractall(extract_path)
                         st.success("File extraction successfull")
 
-                        for root, dirs, files in os.walk(extract_path):
-                            for file in files:
-                                filepath = os.path.join(root, file)
+                        all_docs = file_traversal(extract_path)
 
-                                if not file.lower().endswith((".py", ".txt", ".md", ".json", ".html", ".css", ".scss" ".js", ".jsx",".xml", ".csv", ".yml", ".ini")):
-                                    continue
+                elif pdf_ziped_doc is not None and pdf_ziped_doc.type == 'application/pdf':
 
-                                # get the file text
-                                content = read_file_safely(filepath)
-                                all_docs.append(Document(page_content=content, metadata={'source':filepath}))
+                    all_docs = get_raw_directory_text(pdf_ziped_doc)
 
+                # get the chunk data
+                chunks = get_text_chunks(all_docs)
+                st.success("Chunked the doc!")
 
-
-                                # get the chunk data
-                                chunks = get_text_chunks(all_docs)
-                                st.success("Chunked the doc!")
-                                # st.write(chunks)
-
-                                # store in a vector database
-                                vector_store = get_vector_store(chunks)
-                                st.success("Ready for conversation")
-                                st.session_state.conversation = get_conversation(vector_store)
+                # store in a vector database
+                vector_store = get_vector_store(chunks)
+                st.success("Ready for conversation")
+                st.session_state.conversation = get_conversation(vector_store)
                 
 
 
